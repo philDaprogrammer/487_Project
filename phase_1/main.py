@@ -1,6 +1,4 @@
 import csv
-
-import pandas
 import pandas as pd
 
 """ 
@@ -41,9 +39,8 @@ def add_records(reader):
 
     home_df = pd.DataFrame(home, columns=["home_team_wins", "home_team_ties", "home_team_loses"])
     away_df = pd.DataFrame(away, columns=["away_team_wins", "away_team_ties", "away_team_loses"])
-    print(len(date_ranges), len(home_df), len(away_df))
 
-    return pandas.concat([date_ranges.reset_index(), home_df, away_df], axis=1)
+    return pd.concat([date_ranges.reset_index(), home_df, away_df], axis=1)
 
 """ 
 call 'func' on each row in the data set.
@@ -98,11 +95,10 @@ def main():
     reader = pd.read_csv(file)
     added = add_records(reader)
 
-    print(len(added))
     for i, row in added.iterrows():
         print(row, end="\n\n")
 
-    #iter_csv(file, print, end="\n\n")
+    # - iter_csv(file, print, end="\n\n")
     return
 
 
