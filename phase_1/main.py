@@ -1,29 +1,49 @@
 import csv
+
+import pandas
 import pandas as pd
 
+""" 
+add each times record at the end of each game
+"""
+def add_records(reader):
+    # - cleaning (1) filter out 2018 games
+    start = "2017-09-10"
+    end   = "2017-12-31"
 
-def get_game_score(f_name, ID):
-    """
-    if line[1] == gameID:
-        print(line[0:10], line[16])
+    mask        = (reader['game_date'] >= start) & (reader['game_date'] <= end)
+    date_ranges = reader.loc[mask]
 
-        if line[22] == "1":
-            scores[line[16]] += 6
-        if line[23] == "Made":
-            scores[line[16]] += 1
-        if line[24] != "Good":
-            scores[line[16]] += 2
-        if line[54] == "Good":
-            scores[line[16]] += 3
-    """
+    records     = {}
+    away        = []
+    home        = []
 
+    # add each teams record
+    for i, row in date_ranges.iterrows():
 
-def filter_game(row, *args):
-    gameID = args[0]
+        if row["home_team"] not in records:
+            records[row["home_team"]] = [0, 0, 0]
+        if row["away_team"] not in records:
+            records[row["away_team"]] = [0, 0, 0]
 
-    if row[1] == gameID:
-        print(row[71], row[72])
+        if row["total_home_score"] > row["total_away_score"]:
+            records[row["home_team"]][0] += 1
+            records[row["away_team"]][2] += 1
+        elif row["total_home_score"] < row["total_away_score"]:
+            records[row["home_team"]][2] += 1
+            records[row["away_team"]][0] += 1
+        else:
+            records[row["home_team"]][1] += 1
+            records[row["away_team"]][1] += 1
 
+        home.append(records[row["home_team"]])
+        away.append(records[row["away_team"]])
+
+    home_df = pd.DataFrame(home, columns=["home_team_wins", "home_team_ties", "home_team_loses"])
+    away_df = pd.DataFrame(away, columns=["away_team_wins", "away_team_ties", "away_team_loses"])
+    print(len(date_ranges), len(home_df), len(away_df))
+
+    return pandas.concat([date_ranges.reset_index(), home_df, away_df], axis=1)
 
 """ 
 call 'func' on each row in the data set.
@@ -74,12 +94,15 @@ Data cleaning ideas and some EDA, we need 10 in total for each
               
 """
 def main():
-    file = "../data_sets/NFL Play by Play 2009-2018 (v5).csv"
-    # reader = pd.read_csv(file)
-    iter_csv(file, print, end="\n\n")
+    file = "../datasets/results.csv"
+    reader = pd.read_csv(file)
+    added = add_records(reader)
 
-    # game_1 = reader[reader["GameID"] == "2009091000"]
-    # print(game_1)
+    print(len(added))
+    for i, row in added.iterrows():
+        print(row, end="\n\n")
+
+    #iter_csv(file, print, end="\n\n")
     return
 
 
