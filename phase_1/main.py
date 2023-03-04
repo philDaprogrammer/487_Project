@@ -91,10 +91,10 @@ Data cleaning ideas and some EDA, we need 10 in total for each
               
 """
 def main():
-    file = "../data_sets/results.csv"
+    file = "./data_sets/results.csv"
     reader = pd.read_csv(file)
     added  = add_records(reader)
-    added.to_csv("../data_sets/records.csv")
+    added.to_csv("./data_sets/records.csv")
 
     for i, row in added.iterrows():
         print(row, end="\n\n")
