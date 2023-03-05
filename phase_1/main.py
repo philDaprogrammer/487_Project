@@ -158,8 +158,6 @@ def create_set(cache=False):
         final_df = pd.read_csv(results)
 
     print("Done", end="\n\n")
-    print(final_df)
-
     return final_df
 
 
