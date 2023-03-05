@@ -1,105 +1,170 @@
-import csv
 import pandas as pd
+from os.path import exists
+
+team_mapping = {
+    "jets": "NYJ", "browns": "CLE", "bears": "CHI", "tennessee": "TEN", "kansascity": "KC",
+    "bucs": "TB", "hawks3": "SEA", "patriots": "NE", "49erslogo": "SF","washington": "WAS",
+    "dolphins": "MIA", "colts": "IND", "buffalo": "BUF", "texans": "HOU", "arizona2": "ARI",
+    "eagles1": "PHI", "lions": "DET", "rams2": "LA", "broncos": "DEN", "vikings": "MIN",
+    "panthers": "CAR", "falcons": "ATL", "oakland": "OAK", "Pittsburgh-Steelers-logo-psd22874": "PIT",
+    "jaguars": "JAX", "neworleans": "NO", "dallas": "DAL", "chargers2": "LAC", "NFL_Chargers_logo.svg_": "LAC",
+    "ravens": "BAL", "bengals": "CIN", "nygiants": "NYG", "packers": "GB"
+}
+
+names_map = {
+    "Johnathan Ford": "John Ford", "Deshawn Shead": "DeShawn Shead",
+    "Jake Schum": "Jacob Schum", "Donavan Clark": "Donavon Clark",
+    "Denzell Good": "Denzelle Good", "Adam-Pacman Jones": "Adam Jones",
+    "LaDarius Gunter": "Ladarius Gunter", "Travis Carrie": "T.J. Carrie",
+    "John Cyprien": "Johnathan Cyprien", "Seth Devalve": "Seth DeValve",
+    "Chris Milton": "Christopher Milton"
+}
+
+def parse_int(line: str):
+    return line.replace("$", "").replace(",", "")
+
+def map_teams(team: str):
+    return team_mapping[team]
+
+def split_name(name):
+    names = name.split(" ")
+    return (names[0], names[1] + " " + names[2]) if len(names) > 2 else (names[0], names[1])
+
+def map_names(name):
+    return names_map[name] if name in names_map else name
 
 """ 
-add each times record at the end of each game
+I have to read the file in chunks, or my cpu gets bricked
 """
-def add_records(reader):
-    # - cleaning (1) filter out 2018 games
-    start = "2017-09-10"
-    end   = "2017-12-31"
+def read_play_by_play(file_name):
+    games_df = pd.DataFrame()
 
-    mask        = (reader['game_date'] >= start) & (reader['game_date'] <= end)
-    date_ranges = reader.loc[mask]
+    for chunk in pd.read_csv(file_name, chunksize=2000):
+        # - cleaning (8): Drop redundant columns
+        filtered = chunk[['play_id', 'game_id', 'home_team', 'away_team', 'total_home_score', 'total_away_score', 'game_date']]
+        games_df = pd.concat([games_df, filtered])
 
-    records     = {}
-    away        = []
-    home        = []
+    return games_df
 
-    # add each teams record
-    for i, row in date_ranges.iterrows():
 
-        if row["home_team"] not in records:
-            records[row["home_team"]] = [0, 0, 0]
-        if row["away_team"] not in records:
-            records[row["away_team"]] = [0, 0, 0]
+def fix_team_names(games_df):
+    mapping = {"STL": "LA", "JAC": "JAX", "SD": "LAC"}
+
+    games_df['home_team'] = games_df['home_team'].replace(mapping)
+    games_df['away_team'] = games_df['away_team'].replace(mapping)
+    return games_df
+
+
+def get_unique_games(games_df):
+    game_ids       = games_df['game_id'].unique()
+    filtered_games = pd.DataFrame()
+
+    for uid in game_ids:
+        temp           = games_df[games_df['game_id'] == uid]
+        filtered_games = pd.concat([filtered_games, temp.tail(1)])
+
+    return filtered_games
+
+
+def clean_records(file_name: str):
+    print("Getting team records from 2009 to 2018 ... ")
+
+    games_by_year = {}
+    games_df      = read_play_by_play(file_name)
+
+    # - cleaning (9): some team name abbreviations are incorrect
+    games_df = fix_team_names(games_df)
+
+    # - cleaning (10): get only unique games (last score in the final quarter)
+    unique_games = get_unique_games(games_df)
+
+    # - calculate all games scores from 2009 to 2018 season
+    for i, row in unique_games.iterrows():
+        year = str(row["game_id"])[0:4]
+
+        if year not in games_by_year:
+            games_by_year[year] = {}
+        if row['home_team'] not in games_by_year[year]:
+            games_by_year[year][row['home_team']] = [0, 0, 0]
+        if row['away_team'] not in games_by_year[year]:
+            games_by_year[year][row['away_team']] = [0, 0, 0]
 
         if row["total_home_score"] > row["total_away_score"]:
-            records[row["home_team"]][0] += 1
-            records[row["away_team"]][2] += 1
+            games_by_year[year][row["home_team"]][0] += 1
+            games_by_year[year][row["away_team"]][2] += 1
         elif row["total_home_score"] < row["total_away_score"]:
-            records[row["home_team"]][2] += 1
-            records[row["away_team"]][0] += 1
+            games_by_year[year][row["home_team"]][2] += 1
+            games_by_year[year][row["away_team"]][0] += 1
         else:
-            records[row["home_team"]][1] += 1
-            records[row["away_team"]][1] += 1
+            games_by_year[year][row["home_team"]][1] += 1
+            games_by_year[year][row["away_team"]][1] += 1
 
-        home.append(records[row["home_team"]])
-        away.append(records[row["away_team"]])
-
-    home_df = pd.DataFrame(home, columns=["home_team_wins", "home_team_ties", "home_team_loses"])
-    away_df = pd.DataFrame(away, columns=["away_team_wins", "away_team_ties", "away_team_loses"])
-
-    return pd.concat([date_ranges.reset_index(), home_df, away_df], axis=1)
-
-""" 
-call 'func' on each row in the data set.
-Enumerates the header fields as well.  
-"""
-def iter_csv(f_name, func, *args, **kargs):
-    with open(f_name, "r") as f:
-        reader = csv.reader(f)
-
-        # - enumerate the header indices
-        for i, header in enumerate(next(reader)):
-            print(i, header, end=", ")
-        print("\n")
-
-        for line in reader:
-            if args and kargs:
-                func(line, *args, **kargs)
-            elif args:
-                func(line, *args)
-            elif kargs:
-                func(line, **kargs)
-            else:
-                func(line)
+    return games_by_year
 
 
-""" 
-Data cleaning ideas and some EDA, we need 10 in total for each
-   * We will need to drop certain columns 
-      
-   * Organize players by team (EDA)
-   
-   * Organize players by position (EDA)
-   
-   * Combine the two data sets
-   
-   * Filter only games from 2017 - 2018 (playoffs)
- 
-   * Map abbreviated team names to actual team names 
-   
-   * Need to filter drives where a score occurs 
-   
-   * we will need to create a way of actually calculating if a team won or not 
-     this is done by adding up all scores for each time. IDK if this is cleaning or EDA,
-     but im leaning more towards cleaning
-   
-   * lots of data is un-formatted this will probably be 
-     3 to 5 steps on its own.  
-              
-"""
+def clean_salaries(salaries: str, players: str):
+    print("Cleaning salaries data set and adding player positions ... ")
+
+    salaries_rd = pd.read_csv(salaries)
+    players_rd  = pd.read_csv(players)
+    positions   = []
+
+    # - cleaning (1): drop redundant columns
+    salaries_rd = salaries_rd[["playerName", "totalCash", "team", "salary", "year"]]
+    # - cleaning (2): only consider years from 2009 to 2018
+    salaries_rd = salaries_rd[(salaries_rd['year'] >= 2009) & (salaries_rd['year'] <= 2018)]
+    # - cleaning (3): remove dollar signs and commas from salary feature
+    salaries_rd['salary']     = salaries_rd['salary'].apply(lambda v:  parse_int(v))
+    # - cleaning (4): remove dollar sings and comma's from total cash
+    salaries_rd['totalCash']  = salaries_rd['totalCash'].apply(lambda v: parse_int(v))
+    # - cleaning (5): map team names to correct ones
+    salaries_rd['team']       = salaries_rd['team'].apply(lambda team: map_teams(team))
+    # - cleaning (6): fix up any incorrectly formatted player names
+    salaries_rd['playerName'] = salaries_rd['playerName'].apply(lambda n: map_names(n))
+
+    # - Cleaning (7): add the position feature to the data set
+    for name in salaries_rd['playerName']:
+        first, last = split_name(name)
+        player_mask = (players_rd["nameFirst"] == first) & (players_rd["nameLast"] == last)
+        positions.append(players_rd[player_mask]['position'].to_list()[0])
+
+    return pd.concat([salaries_rd.reset_index(), pd.DataFrame(positions, columns=["position"])], axis=1)
+
+
+def create_set(cache=False):
+    play_by_play = "../data_sets/NFL Play by Play 2009-2018 (v5).csv"
+    nfl_salaries = "../data_sets/nfl_salaries.csv"
+    players      = "../data_sets/players.csv"
+    results      = "../data_sets/results.csv"
+
+    if cache:
+        print("Constructing the new data set")
+    else:
+        print("Getting data set from Disk")
+
+    if not exists(results) or cache:
+        # - cleaning (11) combine the two data sets into a singular data set
+        salaries_df   = clean_salaries(nfl_salaries, players)
+        games_by_year = clean_records(play_by_play)
+        records       = []
+
+        for i, row in salaries_df.iterrows():
+            record = games_by_year[str(row['year'])][row['team']]
+            records.append(f"{record[0]}-{record[2]}-{record[1]}")
+
+        final_df = pd.concat([salaries_df, pd.DataFrame(records, columns=["team_record"])], axis=1)
+        final_df.to_csv(results)
+    else:
+        final_df = pd.read_csv(results)
+
+    print("Done", end="\n\n")
+    print(final_df)
+
+    return final_df
+
+
 def main():
-    file = "../data_sets/results.csv"
-    reader = pd.read_csv(file)
-    added  = add_records(reader)
-    added.to_csv("../data_sets/records.csv")
-
-    for i, row in added.iterrows():
-        print(row, end="\n\n")
-
-    # - iter_csv(file, print, end="\n\n")
+    create_set(cache=True)
     return
 
 
