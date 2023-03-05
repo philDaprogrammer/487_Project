@@ -1,7 +1,7 @@
 import pandas as pd
 from os.path import exists
 
-team_mapping = {
+team_map = {
     "jets": "NYJ", "browns": "CLE", "bears": "CHI", "tennessee": "TEN", "kansascity": "KC",
     "bucs": "TB", "hawks3": "SEA", "patriots": "NE", "49erslogo": "SF","washington": "WAS",
     "dolphins": "MIA", "colts": "IND", "buffalo": "BUF", "texans": "HOU", "arizona2": "ARI",
@@ -20,18 +20,15 @@ names_map = {
     "Chris Milton": "Christopher Milton"
 }
 
+
 def parse_int(line: str):
     return line.replace("$", "").replace(",", "")
 
-def map_teams(team: str):
-    return team_mapping[team]
 
 def split_name(name):
     names = name.split(" ")
     return (names[0], names[1] + " " + names[2]) if len(names) > 2 else (names[0], names[1])
 
-def map_names(name):
-    return names_map[name] if name in names_map else name
 
 """ 
 I have to read the file in chunks, or my cpu gets bricked
@@ -118,9 +115,9 @@ def clean_salaries(salaries: str, players: str):
     # - cleaning (4): remove dollar sings and comma's from total cash
     salaries_rd['totalCash']  = salaries_rd['totalCash'].apply(lambda v: parse_int(v))
     # - cleaning (5): map team names to correct ones
-    salaries_rd['team']       = salaries_rd['team'].apply(lambda team: map_teams(team))
+    salaries_rd['team']       = salaries_rd['team'].replace(team_map)
     # - cleaning (6): fix up any incorrectly formatted player names
-    salaries_rd['playerName'] = salaries_rd['playerName'].apply(lambda n: map_names(n))
+    salaries_rd['playerName'] = salaries_rd['playerName'].replace(names_map)
 
     # - Cleaning (7): add the position feature to the data set
     for name in salaries_rd['playerName']:
@@ -137,12 +134,8 @@ def create_set(cache=False):
     players      = "../data_sets/players.csv"
     results      = "../data_sets/results.csv"
 
-    if cache:
-        print("Constructing the new data set")
-    else:
-        print("Getting data set from Disk")
-
     if not exists(results) or cache:
+        print("Constructing the new data set")
         # - cleaning (11) combine the two data sets into a singular data set
         salaries_df   = clean_salaries(nfl_salaries, players)
         games_by_year = clean_records(play_by_play)
@@ -155,6 +148,7 @@ def create_set(cache=False):
         final_df = pd.concat([salaries_df, pd.DataFrame(records, columns=["team_record"])], axis=1)
         final_df.to_csv(results)
     else:
+        print("Getting data set from Disk")
         final_df = pd.read_csv(results)
 
     print("Done", end="\n\n")
