@@ -22,7 +22,7 @@ names_map = {
 
 
 def parse_int(line: str):
-    return line.replace("$", "").replace(",", "")
+    return line.replace("$", "").replace(",", "").replace("-", "")
 
 
 def split_name(name):
@@ -119,6 +119,10 @@ def clean_salaries(salaries: str, players: str):
     # - cleaning (6): fix up any incorrectly formatted player names
     salaries_rd['playerName'] = salaries_rd['playerName'].replace(names_map)
 
+    salaries_rd['salary'] = salaries_rd['salary'].apply(lambda v: "0" if v == "" else v)
+    # - we have some erroneous white space that we need to get rid of
+    players_rd['nameLast'] = players_rd['nameLast'].apply(lambda v: v.rstrip())
+
     # - Cleaning (7): add the position feature to the data set
     for name in salaries_rd['playerName']:
         first, last = split_name(name)
@@ -129,10 +133,10 @@ def clean_salaries(salaries: str, players: str):
 
 
 def create_set(cache=False):
-    play_by_play = "../data_sets/NFL Play by Play 2009-2018 (v5).csv"
-    nfl_salaries = "../data_sets/nfl_salaries.csv"
-    players      = "../data_sets/players.csv"
-    results      = "../data_sets/results.csv"
+    play_by_play = "../datasets/NFL Play by Play 2009-2018 (v5).csv"
+    nfl_salaries = "../datasets/nfl_salaries.csv"
+    players      = "../datasets/players.csv"
+    results      = "../datasets/results.csv"
 
     if not exists(results) or cache:
         print("Constructing the new data set")
@@ -155,10 +159,21 @@ def create_set(cache=False):
     return final_df
 
 
+def position_salary(results):
+    teams = results['team'].unique()
+    pos   = results['position'].unique()
+
+    for team in teams:
+        mask = (results['team'] == team) & (results['position'] == "LB")
+        print(team, results[mask]['salary'].apply(lambda v: int(v)).sum())
+
+
 def main():
-    create_set(cache=True)
+    results = create_set()
+    position_salary(results)
     return
 
 
 if __name__ == "__main__":
     main()
+
