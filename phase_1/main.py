@@ -312,6 +312,20 @@ def basic_salary_stats(results):
         print(one_team['salary'].describe(), end="\n\n")
 
 
+"""
+How to run: 
+
+We included all the data, so you should be able 
+to run python3 main.py from the src directory 
+and all will run. 
+
+We have an additional EDA.ipynb file that also 
+contains some EDA that combines for 
+total of 10 points. That file also depends 
+on 'results.csv'. so this script must be 
+run first if that file does not already 
+exist
+"""
 def main():
     """
         set read_cache=False if you want to
@@ -333,7 +347,6 @@ def main():
     offensive_vs_defensive(results)
     cap_and_wins(results)
     basic_salary_stats(results)
-    return
 
 
 if __name__ == "__main__":
