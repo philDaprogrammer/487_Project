@@ -24,6 +24,66 @@
 
    https://www.kaggle.com/datasets/toddsteussie/nfl-play-statistics-dataset-2004-to-present
 
+# Project structure: 
+```
+   ├── data_sets
+│   └── results.csv
+├── src
+│   ├── main.py
+│   ├── phase_1
+│   │   ├── EDA.ipynb
+│   │   ├── Phase1.ipynb
+│   │   └── phase1.py
+│   ├── phase_2
+│   │   ├── Modeling.ipynb
+│   │   └── phase2.py
+│   ├── phase_3
+│   │   └── 487-demo
+│   │       ├── angular.json
+│   │       ├── package.json
+│   │       ├── package-lock.json
+│   │       ├── src
+│   │       │   ├── app
+│   │       │   │   ├── app.component.css
+│   │       │   │   ├── app.component.html
+│   │       │   │   ├── app.component.spec.ts
+│   │       │   │   ├── app.component.ts
+│   │       │   │   ├── app.module.ts
+│   │       │   │   └── components
+│   │       │   │       ├── dataset
+│   │       │   │       │   ├── dataset.component.css
+│   │       │   │       │   ├── dataset.component.html
+│   │       │   │       │   ├── dataset.component.spec.ts
+│   │       │   │       │   ├── dataset.component.ts
+│   │       │   │       │   └── dataset.service.ts
+│   │       │   │       ├── header
+│   │       │   │       │   ├── header.component.css
+│   │       │   │       │   ├── header.component.html
+│   │       │   │       │   ├── header.component.spec.ts
+│   │       │   │       │   └── header.component.ts
+│   │       │   │       └── table
+│   │       │   │           ├── table.component.css
+│   │       │   │           ├── table.component.html
+│   │       │   │           ├── table.component.spec.ts
+│   │       │   │           └── table.component.ts
+│   │       │   ├── assets
+│   │       │   ├── favicon.ico
+│   │       │   ├── index.html
+│   │       │   ├── main.ts
+│   │       │   └── styles.css
+│   │       ├── tsconfig.app.json
+│   │       ├── tsconfig.json
+│   │       └── tsconfig.spec.json
+│   └── web_scrapper
+│       └── scrapper.py
+└── user_datasets
+    └── results.csv
+```
+
+results.csv is left as a test file 
+
+
+
 # Running the code: 
 
    To run the code, the following must be installed on the users machine:
@@ -69,3 +129,13 @@
    ```
 
    and one can navigate to the browser and interact with the application
+   
+
+# Working with other datasets. 
+   It could be challenging to find additional data on the 
+   web for our project. The scrapper.py file attempts to 
+   do some web scraping for data. Anyways, it will be easiest 
+   to upload your own datasets to the UI in order to see results, 
+   but it is very important that the headers and fields are 
+   essentially error free. 
+   

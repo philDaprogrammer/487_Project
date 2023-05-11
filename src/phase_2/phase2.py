@@ -9,23 +9,6 @@ from sklearn.neural_network import MLPClassifier
 from sklearn import svm
 
 
-""" 
-Data_frame used in models 
-"""
-results_df = pd.read_csv("../data_sets/results.csv")
-
-
-""" 
-Cheap hack to change the result_df global. 
-Allows the backend and this module to specify 
-their own datasets. This is bad practice and 
-probably unsafe 
-"""
-def set_results_df(path):
-    global results_df
-    results_df = pd.read_csv(path)
-
-
 """
 helper function to get accuracy for various models
 """
@@ -67,7 +50,7 @@ def get_mean_errors(X_train, Y_train, X_test, Y_test):
 """ 
 split the training and testing years 
 """
-def get_train_and_test_years():
+def get_train_and_test_years(results_df):
     years_train = [year for year in results_df['year'].unique() if year < 2018]
     years_test  = [2018]
 
@@ -77,7 +60,7 @@ def get_train_and_test_years():
 """ 
 helper function used to get naive bayes data 
 """
-def get_bayes_data(year, team):
+def get_bayes_data(results_df, year, team):
     players   = results_df[(results_df['team'] == team) & (results_df['year'] == year)]
     offensive = players[players['position'].isin(["S", "OL", "DT", "DE", "DL", "DB", "CB"])]
 
@@ -88,7 +71,7 @@ def get_bayes_data(year, team):
 """
 helper function used to get multi-layer perceptron data  
 """
-def get_mlp_data(year, team):
+def get_mlp_data(results_df, year, team):
     players = results_df[(results_df['team'] == team) & (results_df['year'] == year)]
 
     offensive = players[players['position'].isin(["WR", "OT", "OG", "C", "TE", "QB", "FB", "RB"])]
@@ -102,7 +85,7 @@ def get_mlp_data(year, team):
 """ 
 helper function used to get support vector machine data 
 """
-def get_svm_data(year, team):
+def get_svm_data(results_df, year, team):
     players = results_df[(results_df['team'] == team) & (results_df['year'] == year)]
     rb_sal = players[players['position'] == "QB"]['salary'].sum()
     qb_sal = players[players['position'] == "RB"]['salary'].sum()
@@ -119,14 +102,14 @@ Takes a function that splits data into training
 examples and labels. The way the data is split
 depends on the function provided. 
 """
-def get_train_and_test(years, data_func):
+def get_train_and_test(results_df, years, data_func):
     X = []
     y = []
     teams = results_df['team'].unique()
 
     for year in years:
         for team in teams:
-            example, label = data_func(year, team)
+            example, label = data_func(results_df, year, team)
             X.append(example)
             y.append(label)
 
@@ -139,12 +122,14 @@ data set to determine predict the
 number of wins in a season given the amount 
 of salary cap spent on defensive positions. 
 """
-def naive_bayes():
-    years_train, years_test = get_train_and_test_years()
+def naive_bayes(f_name, verbose=False):
+    results_df = pd.read_csv(f_name)
+
+    years_train, years_test = get_train_and_test_years(results_df)
 
     # - get training and testing data
-    X_train, Y_train = get_train_and_test(years_train, get_bayes_data)
-    X_test, Y_test   = get_train_and_test(years_test, get_bayes_data)
+    X_train, Y_train = get_train_and_test(results_df, years_train, get_bayes_data)
+    X_test, Y_test   = get_train_and_test(results_df, years_test, get_bayes_data)
 
     X_train = X_train.reshape(-1, 1)
     X_test  = X_test.reshape(-1, 1)
@@ -152,7 +137,18 @@ def naive_bayes():
     # - train the naive bayes model
     gnb = GaussianNB()
     model = gnb.fit(X_train, Y_train)
-    pred_2018 = model.predict(X_test)
+
+    if verbose:
+        pred_2018 = model.predict(X_test)
+        # - create the accuracy distribution
+        dist = get_accuracy(pred_2018, Y_test)
+
+        # - plot the model accuracy distribution
+        plt.plot([i for i in range(0, 15)], dist)
+        plt.title(f"Absolute difference in predicted vs actual wins during the 2018 regular season")
+        plt.xlabel("Absolute difference in wins")
+        plt.ylabel("Frequency")
+        plt.show()
 
     # - create the accuracy distribution
     defensive_spending = [val for val in range(1_000_000, 15_000_000, 100_000)]
@@ -177,14 +173,20 @@ if a team will obtain more than 10 wins in a
 given season based on running-back and 
 quarter-back spending
 """
-def support_vm():
-    train_years, test_years = get_train_and_test_years()
-    X_train, y_train = get_train_and_test(train_years, get_svm_data)
-    X_test, y_test = get_train_and_test(test_years, get_svm_data)
+def support_vm(f_name, verbose=False):
+    results_df = pd.read_csv(f_name)
+
+    train_years, test_years = get_train_and_test_years(results_df)
+    X_train, y_train = get_train_and_test(results_df, train_years, get_svm_data)
+    X_test, y_test = get_train_and_test(results_df, test_years, get_svm_data)
 
     clf = svm.SVC(kernel="rbf")
     model = clf.fit(X_train, y_train)
     pred = model.predict(X_test)
+
+    if verbose:
+        accuracy = (pred == y_test).sum() / len(pred)
+        print(f"\n svm accuracy: {accuracy}")
 
     qb_true = []
     rb_true = []
@@ -215,18 +217,20 @@ the number of wins a team will obtain in the
 regular season based on different offensive 
 and defensive spending distributions 
 """
-def multi_lp(mean_errors=False):
-    years_train, years_test = get_train_and_test_years()
+def multi_lp(f_name, verbose=False):
+    results_df = pd.read_csv(f_name)
 
-    X_train, Y_train = get_train_and_test(years_train, get_mlp_data)
-    X_test, Y_test = get_train_and_test(years_test, get_mlp_data)
+    years_train, years_test = get_train_and_test_years(results_df)
+
+    X_train, Y_train = get_train_and_test(results_df, years_train, get_mlp_data)
+    X_test, Y_test = get_train_and_test(results_df, years_test, get_mlp_data)
 
     """     
     Try and find some optimality for our MLP hyper-parameters
     Set mean_errors to true if you want to see the mean errors
     for different hyper-parameters
     """
-    if mean_errors:
+    if verbose:
         get_mean_errors(X_train, Y_train, X_test, Y_test)
 
     mlp = MLPClassifier(solver="sgd", activation="logistic", random_state=1, max_iter=500)
@@ -255,15 +259,29 @@ def multi_lp(mean_errors=False):
     return fig
 
 
+"""
+Functions in this file are called from both the main function and 
+the backend module to obtain model results. Running the code from 
+this file will produce more verbose output that pertains to hyper 
+parameter tuning and accuracy of models. While code in the backend 
+will simply save the figures to a buffer and send them to the front 
+end
+
+usage: 
+    python3 phase2.py
+        
+"""
 def main():
+    f_name = "../../data_sets/results.csv"
+
     # - run ML algos on the dataset
-    naive_bayes()
+    naive_bayes(f_name, verbose=True)
     plt.show()
 
-    multi_lp().show()
+    multi_lp(f_name, verbose=True)
     plt.show()
 
-    support_vm().show()
+    support_vm(f_name, verbose=True)
     plt.show()
     return
 

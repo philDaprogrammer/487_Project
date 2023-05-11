@@ -312,6 +312,10 @@ def basic_salary_stats(results):
         print(one_team['salary'].describe(), end="\n\n")
 
 
+""" 
+usage: python3 phase1.py  
+
+"""
 def main():
     """
         set read_cache=False if you want to

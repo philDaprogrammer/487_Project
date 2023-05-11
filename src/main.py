@@ -3,7 +3,7 @@ import json
 
 from flask import Flask, request, Response
 from flask_cors import CORS
-from phase_2.phase2 import multi_lp, support_vm, naive_bayes, set_results_df
+from phase_2.phase2 import multi_lp, support_vm, naive_bayes
 
 
 """ 
@@ -25,11 +25,12 @@ cors = CORS(app)
 """ 
 Save a figure to a byte stream to send across the webs
 """
+
+
 def serializeFig(fig):
     out = io.BytesIO()
     fig.savefig(out, format="png")
     return out
-
 
 """ 
 Action that is responsible for receiving a user dataset 
@@ -47,8 +48,8 @@ def uploadSet():
     print("uploading data set")
     toUpload = request.files["file"]
 
-    toUpload.save("../user_datasets/" + toUpload.filename)
-    #set_results_df("user_datasets/" + toUpload.filename)
+    to_save = f"../user_datasets/{toUpload.filename}"
+    toUpload.save(to_save)
 
     return json.dumps(resp)
 
@@ -59,19 +60,22 @@ returning their corresponding figure's
 """
 @app.get("/getNaiveBayes")
 def getNaiveBayes():
-    fig = naive_bayes()
+    f_name = request.args.get("f_name")
+    fig = naive_bayes(f"../user_datasets/{f_name}")
     return Response(serializeFig(fig).getvalue(), mimetype="image/png")
 
 
 @app.get('/getSVM')
 def getSVM():
-    fig = support_vm()
+    f_name = request.args.get("f_name")
+    fig = support_vm(f"../user_datasets/{f_name}")
     return Response(serializeFig(fig).getvalue(), mimetype="image/png")
 
 
 @app.get('/getMLP')
 def getMLP():
-    fig = multi_lp()
+    f_name = request.args.get("f_name")
+    fig = multi_lp(f"../user_datasets/{f_name}")
     return Response(serializeFig(fig).getvalue(), mimetype="image/png")
 
 
